@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mountain Simulator</title>
+<style>
+  :root{
+    --sky-top:#5aa7e0;
+    --sky-bottom:#bfe6f0;
+    --sun:#fff6d6;
+    --grass-1:#4c9a3c;
+    --grass-2:#3d7f30;
+    --grass-3:#2f6624;
+    --mountain-1:#8a9aa8;
+    --mountain-2:#5f7080;
+    --snow:#f5f8fb;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow-x:hidden;
+    background:var(--sky-bottom);
+  }
+
+  body {
+    height: 350vh;
+    position:relative;
+  }
+
+  /* ---------- FIXED SKY LAYER ---------- */
+  .sky {
+    position:fixed;
+    top:0; left:0; right:0;
+    height:100vh;
+    width:100%;
+    background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-bottom) 75%);
+    overflow:hidden;
+    z-index:0;
+  }
+
+  .sun {
+    position:absolute;
+    top:8%;
+    right:12%;
+    width:110px;
+    height:110px;
+    border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, #fffef2, var(--sun) 55%, rgba(255,246,214,0));
+    box-shadow: 0 0 60px 30px rgba(255, 246, 200, 0.55);
+    animation: sunPulse 6s ease-in-out infinite;
+  }
+
+  @keyframes sunPulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .cloud {
+    position:absolute;
+    background:#ffffff;
+    border-radius:50px;
+    opacity:0.9;
+    filter: blur(0.5px);
+  }
+  .cloud::before, .cloud::after {
+    content:"";
+    position:absolute;
+    background:#ffffff;
+    border-radius:50%;
+  }
+
+  .cloud1 { width:120px; height:40px; top:15%; left:-20%; animation: driftRight 55s linear infinite; }
+  .cloud1::before { width:60px; height:60px; top:-25px; left:15px; }
+  .cloud1::after  { width:50px; height:50px; top:-15px; left:60px; }
+
+  .cloud2 { width:90px; height:32px; top:26%; left:-30%; animation: driftRight 70s linear infinite; animation-delay:-15s; }
+  .cloud2::before { width:45px; height:45px; top:-18px; left:10px; }
+  .cloud2::after  { width:40px; height:40px; top:-12px; left:45px; }
+
+  .cloud3 { width:150px; height:46px; top:9%; left:-40%; animation: driftRight 90s linear infinite; animation-delay:-40s; }
+  .cloud3::before { width:70px; height:70px; top:-30px; left:20px; }
+  .cloud3::after  { width:55px; height:55px; top:-18px; left:80px; }
+
+  @keyframes driftRight {
+    from { transform: translateX(0); }
+    to   { transform: translateX(140vw); }
+  }
+
+  /* birds - tiny flying V shapes for extra life, no text */
+  .bird {
+    position:absolute;
+    width:22px;
+    height:10px;
+    top:20%;
+    left:-5%;
+    animation: flyAcross 30s linear infinite;
+  }
+  .bird::before, .bird::after {
+    content:"";
+    position:absolute;
+    width:11px;
+    height:2px;
+    background:#33414d;
+    top:50%;
+  }
+  .bird::before { left:0; transform: rotate(25deg); transform-origin:right center; }
+  .bird::after  { right:0; transform: rotate(-25deg); transform-origin:left center; }
+  .bird2 { top:30%; animation-duration:42s; animation-delay:-10s; transform:scale(0.7); }
+  .bird3 { top:16%; animation-duration:36s; animation-delay:-22s; transform:scale(0.5); }
+
+  @keyframes flyAcross {
+    from { transform: translateX(0) scale(var(--s,1)); }
+    to   { transform: translateX(120vw) scale(var(--s,1)); }
+  }
+
+  /* ---------- SCROLLABLE CONTENT ---------- */
+  .content {
+    position:relative;
+    z-index:1;
+    width:100%;
+    height:100%;
+  }
+
+  /* Mountain sits at top, over the sky */
+  .mountain-wrap {
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:60vh;
+    z-index:2;
+  }
+  .mountain-wrap svg { width:100%; height:100%; display:block; }
+
+  /* Grass covers from mid-mountain downward for the entire scroll length */
+  .grass {
+    position:absolute;
+    top:34vh;
+    left:0;
+    width:100%;
+    height:calc(350vh - 34vh);
+    background:
+      repeating-linear-gradient(
+        90deg,
+        rgba(0,0,0,0.03) 0px,
+        rgba(0,0,0,0.03) 60px,
+        rgba(255,255,255,0.025) 60px,
+        rgba(255,255,255,0.025) 120px
+      ),
+      linear-gradient(to bottom, var(--grass-1) 0%, var(--grass-2) 45%, var(--grass-3) 100%);
+    z-index:1;
+    box-shadow: inset 0 40px 60px -30px rgba(0,0,0,0.25);
+  }
+
+  /* subtle field stripes (mown-field look) */
+  .fields {
+    position:absolute;
+    top:34vh;
+    left:0;
+    width:100%;
+    height:calc(350vh - 34vh);
+    background: repeating-linear-gradient(
+      100deg,
+      rgba(255,255,255,0.05) 0,
+      rgba(255,255,255,0.05) 90px,
+      transparent 90px,
+      transparent 220px
+    );
+    z-index:1;
+    pointer-events:none;
+  }
+
+  /* Trees */
+  .tree {
+    position:absolute;
+    width:36px;
+    height:70px;
+    z-index:3;
+  }
+  .tree .trunk {
+    position:absolute;
+    bottom:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:7px;
+    height:22px;
+    background:#5a3a22;
+    border-radius:2px;
+  }
+  .tree .leaves {
+    position:absolute;
+    bottom:16px;
+    left:50%;
+    transform:translateX(-50%);
+    width:0; height:0;
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-bottom:34px solid var(--tc, #2e7d32);
+    filter: drop-shadow(0 6px 3px rgba(0,0,0,0.2));
+  }
+  .tree .leaves.mid {
+    bottom:30px;
+    border-left:14px solid transparent;
+    border-right:14px solid transparent;
+    border-bottom:26px solid var(--tc, #2e7d32);
+  }
+  .tree .leaves.top {
+    bottom:42px;
+    border-left:10px solid transparent;
+    border-right:10px solid transparent;
+    border-bottom:20px solid var(--tc, #2e7d32);
+  }
+  .tree.green { --tc: #2e7d32; }
+  .tree.green2 { --tc: #1f6b2a; }
+  .tree.red { --tc: #b23b2e; }
+  .tree.red2 { --tc: #c9522f; }
+  .tree.sway { animation: sway 4s ease-in-out infinite; transform-origin: bottom center; }
+
+  @keyframes sway {
+    0%,100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+  }
+
+  /* Goat */
+  .goat-zone {
+    position:absolute;
+    top:33vh;
+    left:0;
+    width:100%;
+    height:60px;
+    z-index:4;
+  }
+  .goat {
+    position:absolute;
+    bottom:0;
+    left:12%;
+    width:64px;
+    height:48px;
+    cursor:pointer;
+    transition: left 2.6s cubic-bezier(.4,.1,.3,1);
+    transform: scaleX(1);
+  }
+  .goat.facing-right { transform: scaleX(-1); }
+
+  .goat-emoji {
+    display:block;
+    width:100%;
+    height:100%;
+    font-size:44px;
+    line-height:48px;
+    text-align:center;
+    filter: drop-shadow(0 4px 3px rgba(0,0,0,0.3));
+    user-select:none;
+    animation: goatBounce 0.45s ease-in-out infinite;
+  }
+
+  @keyframes goatBounce {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    50%     { transform: translateY(-6px) rotate(-4deg); }
+  }
+
+  .goat.idle .goat-emoji {
+    animation: goatIdleBob 2.6s ease-in-out infinite;
+  }
+
+  @keyframes goatIdleBob {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    50%     { transform: translateY(-2px) rotate(2deg); }
+  }
+
+  /* ---------- Owl (mountains) ---------- */
+  .owl-perch {
+    position:absolute;
+    z-index:3;
+    transition: left 2.4s cubic-bezier(.4,.1,.3,1);
+  }
+  .owl-emoji {
+    display:block;
+    font-size:34px;
+    line-height:1;
+    filter: drop-shadow(0 3px 3px rgba(0,0,0,0.35));
+    cursor:pointer;
+  }
+  .owl-perch.facing-right {
+    transform: scaleX(-1);
+  }
+
+  /* ---------- Field critters ---------- */
+  .critter {
+    position:absolute;
+    z-index:3;
+    font-size:30px;
+    line-height:1;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
+    user-select:none;
+    cursor:pointer;
+    transition: left 2.4s cubic-bezier(.4,.1,.3,1);
+  }
+  .critter.facing-right {
+    transform: scaleX(-1);
+  }
+
+  /* ---------- EasyPageX button ---------- */
+  .easypagex-btn {
+    position:fixed;
+    left:50%;
+    bottom:22px;
+    transform:translateX(-50%);
+    z-index:50;
+    padding:12px 28px;
+    background:rgba(20,30,20,0.55);
+    color:#f2f7ee;
+    border:1px solid rgba(255,255,255,0.5);
+    border-radius:999px;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-decoration:none;
+    backdrop-filter: blur(6px);
+    box-shadow:0 4px 18px rgba(0,0,0,0.25);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .easypagex-btn:hover {
+    background:rgba(20,30,20,0.75);
+    transform:translateX(-50%) translateY(-2px);
+  }
+
+  .wind-toggle {
+    position:fixed;
+    left:50%;
+    bottom:22px;
+    transform:translate(calc(-50% - 120px), 0);
+    z-index:50;
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.5);
+    background:rgba(20,30,20,0.55);
+    color:#f2f7ee;
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    backdrop-filter: blur(6px);
+    box-shadow:0 4px 18px rgba(0,0,0,0.25);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .wind-toggle:hover {
+    background:rgba(20,30,20,0.75);
+  }
+  .wind-toggle.on {
+    background:rgba(60,120,90,0.7);
+  }
+  .wind-toggle .icon-off { display:inline; }
+  .wind-toggle .icon-on { display:none; }
+  .wind-toggle.on .icon-off { display:none; }
+  .wind-toggle.on .icon-on { display:inline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cloud1, .cloud2, .cloud3, .bird, .bird2, .bird3, .sun, .tree.sway, .goat-emoji {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Fixed sky background -->
+  <div class="sky">
+    <div class="sun"></div>
+    <div class="cloud cloud1"></div>
+    <div class="cloud cloud2"></div>
+    <div class="cloud cloud3"></div>
+    <div class="bird"></div>
+    <div class="bird bird2"></div>
+    <div class="bird bird3"></div>
+  </div>
+
+  <!-- Scrollable content -->
+  <div class="content">
+
+    <div class="mountain-wrap">
+      <svg viewBox="0 0 1000 400" preserveAspectRatio="none">
+        <polygon points="0,400 0,260 180,90 300,220 420,60 620,260 760,120 1000,300 1000,400" fill="#5f7080"/>
+        <polygon points="0,400 0,300 220,150 380,260 520,110 700,280 880,180 1000,340 1000,400" fill="#8a9aa8"/>
+        <polygon points="180,90 210,130 150,130" fill="#f5f8fb"/>
+        <polygon points="420,60 452,105 388,105" fill="#f5f8fb"/>
+        <polygon points="760,120 792,160 728,160" fill="#f5f8fb"/>
+      </svg>
+      <div class="owl-perch" id="owl" role="button" tabindex="0" aria-label="owl" style="top:26vh; left:20%;">
+        <span class="owl-emoji">🦉</span>
+      </div>
+    </div>
+
+    <div class="grass"></div>
+    <div class="fields"></div>
+
+    <!-- Trees scattered across the scene -->
+    <div id="trees"></div>
+
+    <!-- Field critters -->
+    <div id="critters"></div>
+
+    <div class="goat-zone">
+      <div class="goat idle" id="goat" role="button" aria-label="goat" tabindex="0">
+        <span class="goat-emoji">🐐</span>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="wind-toggle" id="windToggle" type="button" aria-label="Toggle wind sound">
+    <span class="icon-off">🔇</span>
+    <span class="icon-on">🔊</span>
+  </button>
+
+  <a class="easypagex-btn" href="https://easypagex.com" target="_blank" rel="noopener noreferrer">EasyPageX</a>
+
+<script>
+  // ---------- Scatter trees ----------
+  const treesContainer = document.getElementById('trees');
+  const colors = ['green','green2','red','red2'];
+  const totalTrees = 55;
+  const contentHeightVh = 350; // matches body height
+  for (let i = 0; i < totalTrees; i++) {
+    const tree = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const sway = Math.random() > 0.4;
+    tree.className = 'tree ' + color + (sway ? ' sway' : '');
+    const topVh = 32 + Math.random() * (contentHeightVh - 40);
+    const leftPct = Math.random() * 96;
+    const scale = 0.6 + Math.random() * 0.9;
+    tree.style.top = topVh + 'vh';
+    tree.style.left = leftPct + '%';
+    tree.style.transform = 'scale(' + scale.toFixed(2) + ')';
+    tree.style.animationDuration = (3 + Math.random() * 3) + 's';
+    tree.innerHTML = `
+      <div class="trunk"></div>
+      <div class="leaves"></div>
+      <div class="leaves mid"></div>
+      <div class="leaves top"></div>
+    `;
+    treesContainer.appendChild(tree);
+  }
+
+  // ---------- Scatter field critters (one of each, click to move side to side) ----------
+  const crittersContainer = document.getElementById('critters');
+  const critterTypes = ['🐏', '🐑', '🐄', '🐇', '🐿️', '🦎']; // ram, sheep, cow, rabbit, squirrel, lizard
+
+  critterTypes.forEach((emoji, index) => {
+    const critter = document.createElement('div');
+    critter.className = 'critter';
+    critter.textContent = emoji;
+    critter.setAttribute('role', 'button');
+    critter.setAttribute('tabindex', '0');
+    critter.setAttribute('aria-label', 'animal');
+
+    const topVh = 40 + (index * ((contentHeightVh - 55) / critterTypes.length)) + Math.random() * 10;
+    const scale = 0.9 + Math.random() * 0.4;
+    const startLeft = 8 + Math.random() * 10;   // start near the left
+    const endLeft = 80 + Math.random() * 10;    // move near the right
+
+    critter.style.top = topVh + 'vh';
+    critter.style.left = startLeft + '%';
+    critter.dataset.scale = scale.toFixed(2);
+    critter.style.transform = 'scale(' + critter.dataset.scale + ')';
+    critter.dataset.start = startLeft;
+    critter.dataset.end = endLeft;
+    critter.dataset.onEnd = 'false';
+
+    const reversedFlip = emoji === '🦎';
+
+    critter.addEventListener('click', () => {
+      const onEnd = critter.dataset.onEnd === 'true';
+      const goingToEnd = !onEnd;
+      critter.style.left = (goingToEnd ? critter.dataset.end : critter.dataset.start) + '%';
+      const s = critter.dataset.scale;
+      const flipNow = reversedFlip ? !goingToEnd : goingToEnd;
+      critter.style.transform = flipNow
+        ? 'scaleX(-' + s + ') scaleY(' + s + ')'
+        : 'scale(' + s + ')';
+      critter.dataset.onEnd = goingToEnd.toString();
+    });
+    critter.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') critter.click();
+    });
+
+    crittersContainer.appendChild(critter);
+  });
+
+  // ---------- Owl click-to-move ----------
+  const owl = document.getElementById('owl');
+  let owlOnRight = false;
+
+  function moveOwl() {
+    owlOnRight = !owlOnRight;
+    owl.classList.toggle('facing-right', !owlOnRight);
+    owl.style.left = owlOnRight ? '68%' : '20%';
+  }
+
+  owl.addEventListener('click', moveOwl);
+  owl.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') moveOwl();
+  });
+
+  // ---------- Goat click-to-move ----------
+  const goat = document.getElementById('goat');
+  let onRight = false;
+
+  function moveGoat() {
+    onRight = !onRight;
+    goat.classList.remove('idle');
+    goat.classList.toggle('facing-right', onRight);
+    goat.style.left = onRight ? '82%' : '10%';
+  }
+
+  goat.addEventListener('click', moveGoat);
+  goat.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') moveGoat();
+  });
+  goat.addEventListener('transitionend', () => {
+    goat.classList.add('idle');
+  });
+
+  // occasional idle little trot-in-place so it never looks fully frozen
+  setInterval(() => {
+    if (goat.classList.contains('idle')) {
+      goat.classList.remove('idle');
+      setTimeout(() => goat.classList.add('idle'), 900);
+    }
+  }, 7000);
+
+  // ---------- Wind sound (synthesized, no external files) ----------
+  let audioCtx, windGain, started = false, windOn = false;
+  const windToggle = document.getElementById('windToggle');
+
+  function buildWind() {
+    if (started) return;
+    started = true;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Create pink-ish noise buffer
+    const bufferSize = 2 * audioCtx.sampleRate;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      output[i] = (b0+b1+b2+b3+b4+b5+white*0.5362) * 0.11;
+      b6 = white * 0.115926;
+    }
+
+    const noiseSource = audioCtx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    noiseSource.loop = true;
+
+    const bandpass = audioCtx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 500;
+    bandpass.Q.value = 0.6;
+
+    windGain = audioCtx.createGain();
+    windGain.gain.value = 0.0;
+
+    // slow gusting via LFO on gain
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 0.05;
+    lfo.connect(lfoGain);
+    lfoGain.connect(windGain.gain);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(windGain);
+    windGain.connect(audioCtx.destination);
+
+    noiseSource.start(0);
+    lfo.start(0);
+
+    // fade in
+    windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    windGain.gain.linearRampToValueAtTime(0.09, audioCtx.currentTime + 2.5);
+  }
+
+  windToggle.addEventListener('click', () => {
+    buildWind();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    windOn = !windOn;
+    windToggle.classList.toggle('on', windOn);
+    const now = audioCtx.currentTime;
+    windGain.gain.cancelScheduledValues(now);
+    windGain.gain.setValueAtTime(windGain.gain.value, now);
+    windGain.gain.linearRampToValueAtTime(windOn ? 0.09 : 0, now + 1.2);
+  });
+
+</script>
+</body>
+</html>
